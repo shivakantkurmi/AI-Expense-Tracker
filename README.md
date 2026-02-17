@@ -1,7 +1,7 @@
-# Expense-Tracker
-
-# 💸 Expense Tracker
-
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/c8561d24-7053-41f1-bb55-423e3b620c14" width="100" height="100" alt="AI Expense Tracker Logo">
+  <h1 align="center">AI Expense Tracker</h1>
+</p>
 A full-stack expense management web app to help users track, visualize, and export their income and expenses. Built with the **MERN stack** (MongoDB, Express, React, Node.js).
 
 ---
