@@ -1,24 +1,22 @@
-/* Financial Advisor Styles */
+/* Financial Advisor Floating Chat Widget - Enhanced Responsive Version */
+
+/* ==========================================================================
+   Base styles (mobile-first – smallest screens first)
+   ========================================================================== */
+
+/* Container */
 .financial-advisor-container {
   position: fixed;
-  bottom: 20px;
-  right: 20px;
+  bottom: 16px;
+  right: 16px;
   font-family: inherit;
   z-index: 999;
 }
 
-/* Mobile Responsive */
-@media (max-width: 640px) {
-  .financial-advisor-container {
-    bottom: 16px;
-    right: 16px;
-  }
-}
-
 /* Toggle Button */
 .advisor-toggle-btn {
-  width: 56px;
-  height: 56px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
@@ -27,106 +25,66 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-  transition: all 0.3s ease;
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.35);
+  transition: all 0.28s ease;
   position: relative;
+  touch-action: manipulation; /* better touch response */
 }
 
-@media (max-width: 640px) {
-  .advisor-toggle-btn {
-    width: 52px;
-    height: 52px;
-  }
-}
-
-.advisor-toggle-btn:hover {
-  transform: scale(1.1);
-  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+.advisor-toggle-btn:hover,
+.advisor-toggle-btn:focus-visible {
+  transform: scale(1.08);
+  box-shadow: 0 6px 20px rgba(102, 126, 234, 0.55);
 }
 
 .advisor-toggle-btn.open {
   transform: rotate(45deg);
 }
 
-/* Pulse Animation */
+/* Pulse ring */
 .advisor-toggle-btn::after {
   content: "";
   position: absolute;
-  width: 100%;
-  height: 100%;
+  inset: 0;
   border-radius: 50%;
-  background: rgba(102, 126, 234, 0.2);
-  animation: pulse 2s ease-in-out infinite;
+  background: rgba(102, 126, 234, 0.22);
+  animation: pulse 2.2s ease-in-out infinite;
 }
 
 @keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-  50% {
-    transform: scale(1.15);
-    opacity: 0.5;
-  }
-  100% {
-    transform: scale(1);
-    opacity: 0;
-  }
+  0%, 100%   { transform: scale(1);   opacity: 0.9; }
+  50%        { transform: scale(1.18); opacity: 0.4; }
 }
 
-/* Chat Window */
+/* Chat Window – starts narrow & tall-ish on mobile */
 .advisor-chat-window {
   position: absolute;
-  bottom: 70px;
+  bottom: 76px;           /* toggle height + gap */
   right: 0;
-  width: 380px;
-  height: 600px;
+  width: calc(100vw - 32px);
+  max-width: 360px;
+  height: 65vh;
+  max-height: 520px;
+  min-height: 420px;
   background: white;
-  border-radius: 12px;
-  box-shadow: 0 5px 40px rgba(0, 0, 0, 0.16);
+  border-radius: 16px;
+  box-shadow: 0 8px 38px rgba(0, 0, 0, 0.18), 0 4px 12px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
-  animation: slideUp 0.3s ease-out;
+  animation: slideUp 0.32s ease-out;
   overflow: hidden;
 }
 
-/* Mobile Responsive - Full height on small screens */
-@media (max-width: 768px) {
-  .advisor-chat-window {
-    width: 320px;
-    height: 500px;
-    bottom: 65px;
-    right: 0;
-  }
-}
-
-@media (max-width: 640px) {
-  .advisor-chat-window {
-    width: calc(100vw - 32px);
-    height: 70vh;
-    max-height: 500px;
-    bottom: 60px;
-    right: 16px;
-    left: 16px;
-  }
-}
-
 @keyframes slideUp {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(24px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
 }
 
 /* Header */
 .advisor-header {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  padding: 14px 16px;
+  padding: 12px 14px;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -135,18 +93,9 @@
 
 .advisor-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 600;
-}
-
-@media (max-width: 640px) {
-  .advisor-header {
-    padding: 12px 12px;
-  }
-  
-  .advisor-header h3 {
-    font-size: 14px;
-  }
+  letter-spacing: -0.01em;
 }
 
 .advisor-close-btn {
@@ -154,70 +103,57 @@
   border: none;
   color: white;
   cursor: pointer;
+  padding: 6px;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  min-width: 36px;
+  min-height: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 4px;
-  transition: transform 0.2s ease;
-  min-width: 32px;
-  min-height: 32px;
 }
 
-.advisor-close-btn:hover {
+.advisor-close-btn:hover,
+.advisor-close-btn:focus-visible {
+  background: rgba(255,255,255,0.18);
   transform: rotate(90deg);
 }
 
-/* Messages Area */
+/* Messages */
 .advisor-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background-color: #f8f9fa;
-}
-
-@media (max-width: 640px) {
-  .advisor-messages {
-    padding: 12px;
-    gap: 10px;
-  }
+  gap: 10px;
+  background: #f9fafb;
 }
 
 .advisor-messages::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
-
 .advisor-messages::-webkit-scrollbar-track {
   background: transparent;
 }
-
 .advisor-messages::-webkit-scrollbar-thumb {
-  background: #ccc;
+  background: #d1d5db;
   border-radius: 3px;
 }
-
 .advisor-messages::-webkit-scrollbar-thumb:hover {
-  background: #999;
+  background: #9ca3af;
 }
 
-/* Message Styles */
+/* Message styles (kept mostly same, just minor tweaks) */
 .message {
   display: flex;
   flex-direction: column;
-  animation: fadeIn 0.3s ease-in;
+  animation: fadeIn 0.32s ease-out;
 }
 
 @keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .user-message {
@@ -227,7 +163,7 @@
 .user-message .message-content {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
-  border-radius: 12px 12px 4px 12px;
+  border-radius: 14px 14px 4px 14px;
 }
 
 .bot-message {
@@ -236,35 +172,29 @@
 
 .bot-message .message-content {
   background: white;
-  color: #333;
-  border: 1px solid #e0e0e0;
-  border-radius: 12px 12px 12px 4px;
+  color: #1f2937;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px 14px 14px 4px;
 }
 
 .message-content {
   padding: 10px 14px;
-  word-wrap: break-word;
-  max-width: 85%;
-  line-height: 1.4;
+  max-width: 88%;
+  line-height: 1.45;
   font-size: 14px;
-}
-
-@media (max-width: 640px) {
-  .message-content {
-    padding: 8px 12px;
-    max-width: 90%;
-    font-size: 13px;
-  }
+  border-radius: inherit;
+  word-break: break-word;
+  overflow-wrap: break-word;
 }
 
 .message-time {
   font-size: 11px;
-  color: #999;
+  color: #9ca3af;
   margin-top: 4px;
-  padding: 0 4px;
+  padding: 0 6px;
 }
 
-/* Loading Animation */
+/* Loading dots */
 .loading {
   display: flex;
   align-items: center;
@@ -277,132 +207,90 @@
   height: 8px;
   border-radius: 50%;
   background: #667eea;
-  animation: bounce 1.4s infinite;
+  animation: bounce 1.4s infinite ease-in-out;
 }
 
-.loading span:nth-child(2) {
-  animation-delay: 0.2s;
-}
-
-.loading span:nth-child(3) {
-  animation-delay: 0.4s;
-}
+.loading span:nth-child(2) { animation-delay: 0.2s; }
+.loading span:nth-child(3) { animation-delay: 0.4s; }
 
 @keyframes bounce {
-  0%, 80%, 100% {
-    transform: scale(0.8);
-    opacity: 0.5;
-  }
-  40% {
-    transform: scale(1);
-    opacity: 1;
-  }
+  0%, 80%, 100% { transform: scale(0.75); opacity: 0.6; }
+  40%           { transform: scale(1.0); opacity: 1; }
 }
 
-/* Suggested Questions */
+/* Suggested questions */
 .suggested-questions {
-  padding: 12px 16px;
-  border-top: 1px solid #e0e0e0;
+  padding: 12px 14px;
+  border-top: 1px solid #e5e7eb;
+  background: white;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: white;
-}
-
-@media (max-width: 640px) {
-  .suggested-questions {
-    padding: 10px 12px;
-    gap: 6px;
-  }
+  flex-shrink: 0;
 }
 
 .suggestion-label {
-  margin: 0;
-  font-size: 12px;
-  color: #666;
-  font-weight: 500;
+  margin: 0 0 4px 0;
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .suggestion-btn {
   padding: 10px 12px;
-  background: #f0f2f5;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
-  color: #333;
-  transition: all 0.2s ease;
+  color: #374151;
   text-align: left;
-  line-height: 1.3;
-}
-
-@media (max-width: 640px) {
-  .suggestion-btn {
-    padding: 8px 10px;
-    font-size: 12px;
-  }
+  transition: all 0.2s ease;
 }
 
 .suggestion-btn:hover {
-  background: #e7e9ec;
+  background: #e5e7eb;
   border-color: #667eea;
-  color: #667eea;
+  color: #4f46e5;
 }
 
-.suggestion-btn:active {
-  transform: scale(0.98);
-}
-
-/* Input Area */
+/* Input area */
 .advisor-input-area {
   display: flex;
   gap: 8px;
-  padding: 12px 16px;
+  padding: 12px 14px;
   background: white;
-  border-top: 1px solid #e0e0e0;
+  border-top: 1px solid #e5e7eb;
   flex-shrink: 0;
-}
-
-@media (max-width: 640px) {
-  .advisor-input-area {
-    padding: 10px 12px;
-    gap: 6px;
-  }
 }
 
 .advisor-input {
   flex: 1;
-  border: 1px solid #e0e0e0;
-  border-radius: 6px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
   padding: 10px 12px;
   font-size: 14px;
   outline: none;
-  transition: border-color 0.2s ease;
+  transition: all 0.2s ease;
   font-family: inherit;
-}
-
-@media (max-width: 640px) {
-  .advisor-input {
-    padding: 8px 10px;
-    font-size: 13px;
-  }
 }
 
 .advisor-input:focus {
   border-color: #667eea;
-  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
 }
 
 .advisor-input:disabled {
-  background: #f5f5f5;
-  color: #ccc;
+  background: #f3f4f6;
+  color: #9ca3af;
 }
 
 .advisor-send-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 6px;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
@@ -410,99 +298,117 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
+  transition: all 0.22s ease;
   flex-shrink: 0;
 }
 
-@media (max-width: 640px) {
-  .advisor-send-btn {
-    width: 32px;
-    height: 32px;
-  }
-}
-
 .advisor-send-btn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.advisor-send-btn:active:not(:disabled) {
-  transform: translateY(0);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 14px rgba(102, 126, 234, 0.4);
 }
 
 .advisor-send-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-/* Markdown Content Styles */
-.markdown-content {
-  font-size: 0.95rem;
-  line-height: 1.6;
-  white-space: normal;
-}
+/* ==========================================================================
+   Breakpoints – progressively larger screens
+   ========================================================================== */
 
-.markdown-content h3,
-.markdown-content h4,
-.markdown-content h5 {
-  margin: 12px 0 8px 0;
-  font-weight: 700;
-  color: #667eea;
-  line-height: 1.3;
-}
+/* Larger phones / small landscape */
+@media (min-width: 480px) {
+  .financial-advisor-container {
+    bottom: 20px;
+    right: 20px;
+  }
 
-.markdown-content h3 {
-  font-size: 1.1rem;
-}
+  .advisor-toggle-btn {
+    width: 56px;
+    height: 56px;
+  }
 
-.markdown-content h4 {
-  font-size: 1rem;
-}
-
-.markdown-content h5 {
-  font-size: 0.95rem;
-}
-
-.markdown-content strong {
-  font-weight: 700;
-  color: #764ba2;
-}
-
-.markdown-content code {
-  background: rgba(102, 126, 234, 0.1);
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-family: "Courier New", monospace;
-  font-size: 0.9rem;
-  color: #667eea;
-  white-space: normal;
-  word-break: break-word;
-}
-
-.markdown-content br {
-  display: block;
-  height: 0;
-  content: "";
-}
-
-.bot-message .markdown-content {
-  word-wrap: break-word;
-  overflow-wrap: break-word;
-  white-space: normal;
-}
-
-/* Responsive Design */
-@media (max-width: 480px) {
   .advisor-chat-window {
-    width: calc(100vw - 20px);
-    height: 70vh;
-    max-height: 500px;
-    right: 10px;
-    left: 10px;
-    bottom: 70px;
+    width: 380px;
+    height: 580px;
+    max-height: 640px;
+    bottom: 84px;
+  }
+}
+
+/* Tablets & larger phones in landscape */
+@media (min-width: 640px) {
+  .advisor-chat-window {
+    width: 400px;
+    height: 620px;
+    max-height: 720px;
   }
 
   .message-content {
-    max-width: 95%;
+    max-width: 82%;
   }
+}
+
+/* Small laptops / tablets landscape */
+@media (min-width: 768px) {
+  .advisor-chat-window {
+    width: 420px;
+    height: 640px;
+    max-height: 78vh;
+  }
+
+  .advisor-header h3 {
+    font-size: 16px;
+  }
+
+  .message-content {
+    font-size: 14.5px;
+    padding: 11px 15px;
+  }
+}
+
+/* Larger desktops – optional, prevents window from becoming too wide */
+@media (min-width: 1024px) {
+  .advisor-chat-window {
+    width: 440px;
+    max-height: 82vh;
+  }
+}
+
+/* Very large screens – cap maximum size */
+@media (min-width: 1280px) {
+  .financial-advisor-container {
+    bottom: 24px;
+    right: 24px;
+  }
+
+  .advisor-chat-window {
+    width: 460px;
+  }
+}
+
+/* Landscape orientation adjustment (common on tablets/phones) */
+@media (orientation: landscape) and (max-height: 500px) {
+  .advisor-chat-window {
+    height: 85vh;
+    max-height: 520px;
+  }
+}
+
+/* Markdown content (unchanged, but good practice to keep readable) */
+.markdown-content {
+  font-size: 0.96rem;
+  line-height: 1.6;
+}
+
+.markdown-content h3, .markdown-content h4, .markdown-content h5 {
+  color: #667eea;
+  margin: 14px 0 8px;
+}
+
+.markdown-content code {
+  background: rgba(102, 126, 234, 0.12);
+  padding: 3px 7px;
+  border-radius: 4px;
+  font-size: 0.92rem;
 }

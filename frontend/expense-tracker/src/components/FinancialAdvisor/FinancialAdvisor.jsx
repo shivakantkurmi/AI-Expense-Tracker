@@ -98,7 +98,7 @@ const FinancialAdvisor = () => {
 
       const errorMessage = {
         id: messages.length + 2,
-        text: "Sorry, I encountered an error. Please check your backend connection and try again.",
+        text: "Sorry, I encountered an error. Please try again later.",
         sender: "bot",
         timestamp: new Date(),
       };
