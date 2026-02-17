@@ -14,6 +14,7 @@ import ExpenseTransactions from '../../components/DashBoard/ExpenseTransactions'
 import Last30DaysExpense from '../../components/DashBoard//Last30DaysExpense';
 import RecentIncomeWithChart  from '../../components/DashBoard//RecentIncomeWithChart ';
 import IncomeTransactions  from '../../components/DashBoard//IncomeTransactions';
+import { DashboardLoadingSkeleton } from '../../components/common/LoadingSkeleton';
 
 const Home = () => {
   useUserAuth();
@@ -46,6 +47,15 @@ const Home = () => {
     fetchDashboardData();
     return () => { };
   }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout activeMenu="Dashboard">
+        <DashboardLoadingSkeleton />
+      </DashboardLayout>
+    );
+  }
+
   return (
     <DashboardLayout activeMenu="Dashboard">
       <div className='my-5 mx-auto'>

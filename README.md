@@ -22,6 +22,14 @@ A full-stack expense management web app to help users track, visualize, and expo
 5. Create, delete, view, and **download income/expense data as Excel files**.
 6. Logging out clears token from localStorage (forces re-login).
 7. JWT token persists for 1 day if not logged out (auto-login within 24h).
+8. **🤖 AI Financial Advisor** - Intelligent chatbot powered by Google Generative AI that:
+   - Analyzes your expense and income patterns
+   - Provides personalized financial advice
+   - Understands time period queries ("last month", "2 months", etc.)
+   - Calculates savings rates and spending insights
+   - Available as a floating chat widget in the bottom-right corner
+9. User profile management - Edit profile information and track account details.
+10. Cookie-based authentication - Secure JWT token storage.
 
 ---
 
@@ -57,6 +65,7 @@ A full-stack expense management web app to help users track, visualize, and expo
 * bcrypt
 * dotenv
 * cors
+* Google Generative AI SDK (for AI Advisor feature)
 
 ---
 
@@ -75,7 +84,8 @@ Create a `.env` file in `/backend`:
 PORT=8000
 MONGO_URI=your_mongodb_connection_string
 JWT_SECRET=your_jwt_secret
-CLIENT_URL= your frontend URL
+CLIENT_URL=your_frontend_url
+GOOGLE_API_KEY=your_google_generative_ai_api_key
 ```
 
 Run the backend server:
@@ -111,8 +121,39 @@ npm run dev
 ## 🔐 Authentication
 
 * JWT-based login system.
-* Token stored in localStorage, valid for 24 hours.
+* Token stored in cookies, valid for 24 hours.
 * Protected routes using token in Authorization headers.
+
+---
+
+## 🤖 AI Financial Advisor
+
+The app includes an intelligent AI Financial Advisor powered by Google Generative AI (Gemini 2.5 Flash model):
+
+**Features:**
+- **Smart Data Analysis**: Analyzes your recent transactions to provide personalized insights
+- **Time Period Understanding**: Asks about "last month", "2 months", "3 weeks", etc., and automatically adjusts the analysis
+- **Savings Insights**: Calculates savings rate and highlights top spending categories
+- **Easy Access**: Available as a floating chat widget in the bottom-right corner of any authenticated page
+- **Markdown Formatting**: Responses include formatted text, emojis, and structured advice
+
+**How to Use:**
+1. Navigate to any dashboard page after logging in
+2. Look for the floating chat button in the bottom-right corner
+3. Click to open the advisor
+4. Ask questions like:
+   - "How are my expenses trending?"
+   - "What's my savings rate this month?"
+   - "Where am I overspending?"
+   - "How did I do in the last 3 months?"
+
+**Setup:**
+Add `GOOGLE_API_KEY` to your `.env` file:
+```env
+GOOGLE_API_KEY=your_google_generative_ai_key
+```
+
+Get your API key from [Google AI Studio](https://aistudio.google.com/apikey)
 
 ---
 
@@ -131,6 +172,11 @@ npm run dev
 * `POST /api/auth/register` — Register a user
 * `POST /api/auth/login` — Authenticate user & get token
 
+### � User Profile
+
+* `GET /api/user/profile` — Get user profile information
+* `PUT /api/user/profile` — Update user profile (name, etc.)
+
 ### 💰 Income
 
 * `GET /api/income/get`
@@ -141,7 +187,11 @@ npm run dev
 ### 🧾 Expenses
 
 * Same as income routes (`/api/expenses/...`)
-* changed `Get /api/income/all`
+* `GET /api/expenses/all`
+
+### 🤖 AI Advisor
+
+* `POST /api/user/advisor` — Get AI financial advice based on user's financial data
 
 ---
 

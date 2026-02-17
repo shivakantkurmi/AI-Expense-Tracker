@@ -146,7 +146,8 @@ import { API_PATHS } from '../../utils/apiPaths';
 import axiosInstance from '../../utils/axiosInstance';
 import { LuPlus, LuTrash2 } from 'react-icons/lu';
 import Modal from '../../components/common/Modal';
-import AddExpenseForm from '../../components/Expense/AddExpenseForm'; 
+import AddExpenseForm from '../../components/Expense/AddExpenseForm';
+import { ListLoadingSkeleton } from '../../components/common/LoadingSkeleton'; 
 
 const Expense = () => {
   const [expenseData, setExpenseData] = useState([]);
@@ -220,6 +221,14 @@ const Expense = () => {
   useEffect(() => {
     fetchExpenseDetails();
   }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout activeMenu="Expense">
+        <ListLoadingSkeleton rows={8} />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout activeMenu="Expense">

@@ -22,4 +22,11 @@ export const API_PATHS = {
     DELETE_EXPENSE: (expenseId) => `/api/expenses/${expenseId}`,
     DOWNLOAD_EXPENSE: "/api/expenses/downloadexcel",
   },
+  ADVISOR: {
+    GET_ADVICE: "/api/advisor/get-advice",
+  },
+  USER: {
+    GET_PROFILE: "/api/user/profile",
+    UPDATE_PROFILE: "/api/user/profile",
+  },
 };

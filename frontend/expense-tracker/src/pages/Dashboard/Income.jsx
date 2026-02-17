@@ -6,6 +6,7 @@ import axiosInstance from '../../utils/axiosInstance';
 import { LuPlus, LuTrash2 } from 'react-icons/lu';
 import Modal from '../../components/common/Modal';
 import AddIncomeForm from '../../components/Income/AddIncomeForm';
+import { ListLoadingSkeleton } from '../../components/common/LoadingSkeleton';
 
 const Income = () => {
   const [incomeData, setIncomeData] = useState([]);
@@ -79,6 +80,14 @@ const Income = () => {
   useEffect(() => {
     fetchIncomeDetails();
   }, []);
+
+  if (loading) {
+    return (
+      <DashboardLayout activeMenu="Income">
+        <ListLoadingSkeleton rows={8} />
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout activeMenu="Income">

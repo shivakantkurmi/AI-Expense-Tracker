@@ -5,7 +5,7 @@ import cookieManager from './cookieManager';
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
   // withCredentials: true,
-  timeout: 10000,
+  timeout: 60000,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
