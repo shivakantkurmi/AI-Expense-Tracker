@@ -1,8 +1,10 @@
 import axios from 'axios';
 import { BASE_URL } from './apiPaths';
+import cookieManager from './cookieManager';
 
 const axiosInstance = axios.create({
   baseURL: BASE_URL,
+  // withCredentials: true,
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -13,7 +15,7 @@ const axiosInstance = axios.create({
 // Request Interceptor
 axiosInstance.interceptors.request.use(
   (config) => {
-    const accessToken = localStorage.getItem('token');
+    const accessToken = cookieManager.get('token');
     if (accessToken) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }

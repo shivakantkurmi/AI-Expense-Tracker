@@ -4,6 +4,7 @@ import AuthLayout from "../../components/layouts/AuthLayout";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import { UserContext } from "../../context/UserContext";
+import cookieManager from "../../utils/cookieManager";
 
 const Login = () => {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ const Login = () => {
       const token = user.token;
 
       if (token) {
-        localStorage.setItem("token", token);
+        cookieManager.set("token", token);
         updateUser(user);
         navigate("/dashboard");
       }

@@ -11,6 +11,7 @@ import Home from "./pages/Dashboard/Home";
 import Income from "./pages/Dashboard/Income";
 import Expense from "./pages/Dashboard/Expense";
 import UserProvider from "./context/UserContext";
+import cookieManager from "./utils/cookieManager";
 const App = () =>{
     return(
         <UserProvider>
@@ -35,7 +36,7 @@ export default App;
 
 const Root = ()=>{
     // Check if token exist 
-    const isAuthenticated=!!localStorage.getItem("token");
+    const isAuthenticated=!!cookieManager.get("token");
 
     //if person is authenticated open dashborad but if not redirect to login/signup pages
     return isAuthenticated ? (<Navigate to="/dashboard"/>) : (<Navigate to="/login"/>);

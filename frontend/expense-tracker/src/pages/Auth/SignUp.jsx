@@ -4,6 +4,7 @@ import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import { useNavigate } from "react-router-dom";
 import { UserContext } from "../../context/UserContext";
+import cookieManager from "../../utils/cookieManager";
 
 const Signup = () => {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ const Signup = () => {
       const { token, user: userData } = response.data.user;
 
       if (token) {
-        localStorage.setItem("token", token);
+        cookieManager.set("token", token);
         updateUser(userData);
         alert("You have successfully registered. Please log in.");
         navigate("/login");

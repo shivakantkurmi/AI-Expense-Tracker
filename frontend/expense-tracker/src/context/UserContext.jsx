@@ -1,4 +1,5 @@
 import React, { createContext, useState, useEffect } from "react";
+import cookieManager from "../utils/cookieManager";
 
 export const UserContext = createContext();
 
@@ -7,7 +8,7 @@ const UserProvider = ({ children }) => {
   const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
+    const storedUser = cookieManager.get("user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
     }
@@ -16,12 +17,12 @@ const UserProvider = ({ children }) => {
 
   const updateUser = (userData) => {
     setUser(userData);
-    localStorage.setItem("user", JSON.stringify(userData));
+    cookieManager.set("user", JSON.stringify(userData));
   };
 
   const clearUser = () => {
     setUser(null);
-    localStorage.removeItem("user");
+    cookieManager.delete("user");
   };
 
   if (loading) return <div>Loading...</div>;
