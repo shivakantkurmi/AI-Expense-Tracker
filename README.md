@@ -8,7 +8,7 @@ A full-stack expense management web app to help users track, visualize, and expo
 
 ## 🔗 Live Demo
 
-* **Vercel Link**: [https://your-frontend-url.vercel.app](https://expense-tracker-qsq9.vercel.app/login)
+* **Vercel Link**: [https://your-frontend-url.vercel.app](https://ai-expense-tracker-frontend.vercel.app)
 
 
 ---
@@ -27,12 +27,13 @@ A full-stack expense management web app to help users track, visualize, and expo
 
 ## dashboard page looks like : 
 <p align="center" style="display: flex; gap: 10px; justify-content: center;">
-  <img src="https://github.com/user-attachments/assets/df462143-2f56-4ccb-aad8-f1dfff9b6ef1" width="49%" style="border: 1px solid #ccc; padding: 6px; border-radius: 8px;" />
-  <img src="https://github.com/user-attachments/assets/00131b46-d174-4444-8cb5-d8da84333863" width="49%" style="border: 1px solid #ccc; padding: 6px; border-radius: 8px;" />
+
+  <img src="https://github.com/user-attachments/assets/1d1c74ed-6ec5-4044-9c8a-fc93e1d3270a" width="49%" style="border: 1px solid #ccc; padding: 6px; border-radius: 8px;" />
+  <img src="https://github.com/user-attachments/assets/6a7cc4e6-06e2-487d-b5af-48b12d3c85af" " width="49%" style="border: 1px solid #ccc; padding: 6px; border-radius: 8px;" />
 </p>
 
 <p align="center">
-  <img src="https://github.com/user-attachments/assets/81fb1823-2d7f-4f2e-b871-4a6c3818b953" width="50%" style="border: 1px solid #ccc; padding: 6px; border-radius: 8px;" />
+  <img src="https://github.com/user-attachments/assets/e28f4c5a-d855-49dc-ad7b-f52137dd1536" width="50%" style="border: 1px solid #ccc; padding: 6px; border-radius: 8px;" />
 </p>
 
 
