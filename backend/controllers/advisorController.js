@@ -1,234 +1,265 @@
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const Expense = require("../models/Expense");
 const Income = require("../models/Income");
+const moment = require("moment");
 
-// Parse date range from user question
+// ────────────────────────────────────────────────
+// Robust date range parser
+// ────────────────────────────────────────────────
 const getDateRange = (question) => {
-  const lowerQ = question.toLowerCase();
+  const q = question.toLowerCase().trim();
   const today = new Date();
-  const year = today.getFullYear();
-  const month = today.getMonth();
-  let startDate = new Date(year, month, 1); // Default: this month
-  let period = "This Month";
+  const thisYear = today.getFullYear();
+  const thisMonth = today.getMonth();
 
-  // Check for "last month" / "previous month"
-  if (lowerQ.includes("last month") || lowerQ.includes("previous month")) {
-    const lastMonth = new Date(year, month - 1, 1);
-    const lastMonthEnd = new Date(year, month, 0);
-    return { startDate: lastMonth, endDate: lastMonthEnd, period: "Last Month" };
+  // 1. All-time keywords
+  if (/all\s*time|lifetime|overall|total\s*(expense|expenses|income)|everything/gi.test(q)) {
+    return { startDate: null, endDate: null, period: "All Time", isAllTime: true };
   }
 
-  // Check for numeric patterns like "2 months", "5 days", "3 weeks"
-  const numberMatch = question.match(/(\d+)\s*(month|months|week|weeks|day|days)/i);
-  if (numberMatch) {
-    const num = parseInt(numberMatch[1]);
-    const unit = numberMatch[2].toLowerCase();
+  // 2. Month range (jan 2025 to march 2025, january to march, etc.)
+  const months = {
+    jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
+    apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
+    aug: 7, august: 7, sep: 8, september: 8, oct: 9, october: 9,
+    nov: 10, november: 10, dec: 11, december: 11,
+  };
+  const monthKeys = Object.keys(months).join("|");
+  const rangeRegex = new RegExp(
+    `(?:between|from)?\\s*(${monthKeys})(?:\\s*(\\d{4}))?\\s*(?:to|and|-)\\s*(${monthKeys})(?:\\s*(\\d{4}))?`,
+    "i"
+  );
+  const rangeMatch = q.match(rangeRegex);
 
-    if (unit.includes("month")) {
-      startDate = new Date(today.getTime() - num * 30 * 24 * 60 * 60 * 1000);
-      period = `Last ${num} Month${num > 1 ? "s" : ""}`;
-    } else if (unit.includes("week")) {
-      startDate = new Date(today.getTime() - num * 7 * 24 * 60 * 60 * 1000);
-      period = `Last ${num} Week${num > 1 ? "s" : ""}`;
-    } else if (unit.includes("day")) {
-      startDate = new Date(today.getTime() - num * 24 * 60 * 60 * 1000);
-      period = `Last ${num} Day${num > 1 ? "s" : ""}`;
+  if (rangeMatch) {
+    const startMonth = months[rangeMatch[1].toLowerCase()];
+    const startYear = rangeMatch[2] ? parseInt(rangeMatch[2]) : thisYear;
+    const endMonth   = months[rangeMatch[3].toLowerCase()];
+    const endYear   = rangeMatch[4] ? parseInt(rangeMatch[4]) : startYear;
+
+    const start = new Date(startYear, startMonth, 1);
+    const end   = new Date(endYear, endMonth + 1, 0, 23, 59, 59);
+
+    if (!isNaN(start.getTime()) && !isNaN(end.getTime()) && start <= end) {
+      return {
+        startDate: start,
+        endDate: end,
+        period: `${rangeMatch[1].charAt(0).toUpperCase() + rangeMatch[1].slice(1)} ${startYear} to ${rangeMatch[3].charAt(0).toUpperCase() + rangeMatch[3].slice(1)} ${endYear}`,
+        isAllTime: false,
+      };
     }
-    return { startDate, endDate: today, period };
   }
 
-  // Check for specific phrases
-  if (lowerQ.includes("this week") || lowerQ.includes("week")) {
-    startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
-    period = "Last 7 Days";
-  } else if (lowerQ.includes("30 day") || lowerQ.includes("past month")) {
-    startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
-    period = "Last 30 Days";
-  } else if (lowerQ.includes("quarterly")) {
-    startDate = new Date(today.getTime() - 90 * 24 * 60 * 60 * 1000);
-    period = "Last 3 Months";
-  } else if (lowerQ.includes("6 month")) {
-    startDate = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000);
-    period = "Last 6 Months";
-  } else if (lowerQ.includes("this year")) {
-    startDate = new Date(year, 0, 1);
-    period = "This Year";
-  } else if (lowerQ.includes("last year")) {
-    startDate = new Date(year - 1, 0, 1);
-    period = "Last Year";
+  // 3. Standalone year (e.g. "in 2025", "expenses 2024", "2023 total")
+  const yearOnlyMatch = q.match(/\b(20\d{2})\b/);
+  if (yearOnlyMatch) {
+    const yr = parseInt(yearOnlyMatch[1]);
+    if (yr >= 2000 && yr <= thisYear + 10) {  // reasonable range to avoid nonsense years
+      const start = new Date(yr, 0, 1);
+      const end = yr === thisYear ? today : new Date(yr, 11, 31, 23, 59, 59);
+      return {
+        startDate: start,
+        endDate: end,
+        period: yr.toString(),
+        isAllTime: false,
+      };
+    }
   }
-  // Default: this month (already set above)
 
-  return { startDate, endDate: today, period };
+  // 4. Single month-year (e.g. "january 2025", "expenses march")
+  const singleMonthRegex = new RegExp(`\\b(${monthKeys})\\b(?:\\s*(\\d{4}))?`, "i");
+  const singleMatch = q.match(singleMonthRegex);
+  if (singleMatch) {
+    const mName = singleMatch[1].toLowerCase();
+    const m = months[mName];
+    const yr = singleMatch[2] ? parseInt(singleMatch[2]) : thisYear;
+    const start = new Date(yr, m, 1);
+    const end = new Date(yr, m + 1, 0, 23, 59, 59);
+    return { startDate: start, endDate: end, period: `${mName.charAt(0).toUpperCase() + mName.slice(1)} ${yr}`, isAllTime: false };
+  }
+
+  // 5. Relative periods (last N ...)
+  const relMatch = q.match(/(\d+)\s*(day|days|week|weeks|month|months|year|years)/i);
+  if (relMatch) {
+    const num = parseInt(relMatch[1], 10);
+    const unit = relMatch[2].toLowerCase();
+    let start;
+    if (unit.startsWith("day")) start = moment().subtract(num, "days").startOf("day").toDate();
+    else if (unit.startsWith("week")) start = moment().subtract(num, "weeks").startOf("week").toDate();
+    else if (unit.startsWith("month")) start = moment().subtract(num, "months").startOf("month").toDate();
+    else if (unit.startsWith("year")) start = moment().subtract(num, "years").startOf("year").toDate();
+    if (start) {
+      return {
+        startDate: start,
+        endDate: today,
+        period: `Last ${num} ${unit.charAt(0).toUpperCase() + unit.slice(1)}${num > 1 ? 's' : ''}`,
+        isAllTime: false,
+      };
+    }
+  }
+
+  // 6. Named: this/last month
+  if (q.includes("this month") || q.includes("current month")) {
+    return { startDate: new Date(thisYear, thisMonth, 1), endDate: today, period: "This Month", isAllTime: false };
+  }
+  if (q.includes("last month") || q.includes("previous month")) {
+    const start = new Date(thisYear, thisMonth - 1, 1);
+    const end = new Date(thisYear, thisMonth, 0, 23, 59, 59);
+    return { startDate: start, endDate: end, period: "Last Month", isAllTime: false };
+  }
+
+  // Default fallback
+  return {
+    startDate: new Date(thisYear, thisMonth, 1),
+    endDate: today,
+    period: "This Month",
+    isAllTime: false,
+  };
 };
 
+// ────────────────────────────────────────────────
+// Controller
+// ────────────────────────────────────────────────
 const advisorController = {
   getAdvice: async (req, res) => {
     try {
-      const { question } = req.body;
+      const { question, intent = "data" } = req.body;
       const userId = req.user?.id;
 
-      console.log("📊 Advisor Request - User ID:", userId);
-      console.log("✓ Token verified - User authenticated");
+      if (!userId) return res.status(401).json({ success: false, message: "Not authenticated" });
+      if (!question?.trim()) return res.status(400).json({ success: false, message: "Question required" });
 
-      if (!userId) {
-        console.error("❌ No user ID found - Authentication failed");
-        return res.status(401).json({ message: "User not authenticated" });
+      let financialContext = "(General advice mode – no user data loaded)";
+      let period = "N/A";  // ← Safe default to prevent ReferenceError
+      let stats = {};
+
+      if (intent === "data") {
+        const { startDate, endDate, period: detectedPeriod, isAllTime } = getDateRange(question);
+        period = detectedPeriod;
+
+        const periodFilter = { user: userId };
+        if (!isAllTime && startDate && endDate) {
+          periodFilter.date = { $gte: startDate, $lte: endDate };
+        }
+
+        const [periodExpenses, periodIncome, allExpenses, allIncome] = await Promise.all([
+          Expense.find(periodFilter).lean(),
+          Income.find(periodFilter).lean(),
+          Expense.find({ user: userId }).lean(),
+          Income.find({ user: userId }).lean(),
+        ]);
+
+        const sum = (arr) => arr.reduce((acc, item) => acc + (Number(item?.amount) || 0), 0);
+
+        const periodExp = sum(periodExpenses);
+        const periodInc = sum(periodIncome);
+        const totalExp  = sum(allExpenses);
+        const totalInc  = sum(allIncome);
+        const netPeriod = periodInc - periodExp;
+
+        const byCategory = periodExpenses.reduce((acc, e) => {
+          const cat = e.category || "Uncategorized";
+          acc[cat] = (acc[cat] || 0) + Number(e.amount || 0);
+          return acc;
+        }, {});
+
+        const categoryLines = Object.entries(byCategory)
+          .sort(([,a], [,b]) => b - a)
+          .map(([cat, amt]) => `• ${cat}: ₹${Math.round(amt)}`)
+          .join("\n") || "→ NO EXPENSE CATEGORIES RECORDED IN THIS PERIOD";
+
+        const bySource = periodIncome.reduce((acc, i) => {
+          const src = i.source || "Uncategorized";
+          acc[src] = (acc[src] || 0) + Number(i.amount || 0);
+          return acc;
+        }, {});
+
+        const incomeLines = Object.entries(bySource)
+          .map(([src, amt]) => `• ${src}: ₹${Math.round(amt)}`)
+          .join("\n") || "→ NO INCOME SOURCES RECORDED IN THIS PERIOD";
+
+        financialContext = `
+REQUESTED PERIOD: ${period}
+DATE RANGE: ${isAllTime ? "All recorded history" : `${moment(startDate).format("D MMM YYYY")} – ${moment(endDate).format("D MMM YYYY")}`}
+
+EXPENSES THIS PERIOD: ₹${Math.round(periodExp)} (${periodExpenses.length} transactions) ${periodExpenses.length === 0 ? " → PERIOD HAS NO RECORDS AT ALL" : ""}
+INCOME THIS PERIOD:   ₹${Math.round(periodInc)} (${periodIncome.length} transactions) ${periodIncome.length === 0 ? " → PERIOD HAS NO RECORDS AT ALL" : ""}
+NET THIS PERIOD:      ₹${Math.round(netPeriod)}
+
+EXPENSE CATEGORIES THIS PERIOD:
+${categoryLines}
+
+INCOME SOURCES THIS PERIOD:
+${incomeLines}
+
+ALL-TIME TOTALS — ONLY USE WHEN QUESTION EXPLICITLY SAYS "all time", "total ever", "lifetime", "overall", "entire history":
+Expenses: ₹${Math.round(totalExp)}
+Income:   ₹${Math.round(totalInc)}
+Net savings: ₹${Math.round(totalInc - totalExp)}
+        `.trim();
+
+        stats = {
+          periodExpense: periodExp,
+          periodIncome: periodInc,
+          totalExpense: totalExp,
+          totalIncome: totalInc,
+          netPeriod,
+        };
       }
 
-      if (!question || !question.trim()) {
-        return res.status(400).json({ message: "Question is required" });
-      }
-
-      if (!process.env.GEMINI_API_KEY) {
-        console.error("❌ GEMINI_API_KEY is not set");
-        return res.status(500).json({
-          message: "Gemini API key is not configured. Please set GEMINI_API_KEY in your backend .env file."
-        });
-      }
-
-      // Parse time period from question
-      const { startDate, endDate, period } = getDateRange(question);
-      console.log(`📅 Fetching data for period: ${period}`);
-
-      // Fetch data for selected period and all-time
-      const [periodExpenses, periodIncome, allExpenses, allIncome] = await Promise.all([
-        Expense.find({
-          user: userId,
-          date: { $gte: startDate, $lte: endDate }
-        })
-          .lean()
-          .exec(),
-        Income.find({
-          user: userId,
-          date: { $gte: startDate, $lte: endDate }
-        })
-          .lean()
-          .exec(),
-        Expense.find({ user: userId }).lean().exec(),
-        Income.find({ user: userId }).lean().exec()
-      ]);
-
-      console.log(`✓ Found ${periodExpenses.length} expenses, ${periodIncome.length} income for ${period}`);
-
-      // Calculate period statistics
-      const periodExpenseTotal = periodExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-      const periodIncomeTotal = periodIncome.reduce((sum, inc) => sum + (inc.amount || 0), 0);
-
-      // Calculate all-time totals
-      const totalExpenses = allExpenses.reduce((sum, exp) => sum + (exp.amount || 0), 0);
-      const totalIncome = allIncome.reduce((sum, inc) => sum + (inc.amount || 0), 0);
-      const savings = totalIncome - totalExpenses;
-
-      // Segment by category and source
-      const expensesByCategory = {};
-      periodExpenses.forEach(exp => {
-        const cat = exp.category || "Uncategorized";
-        expensesByCategory[cat] = (expensesByCategory[cat] || 0) + (exp.amount || 0);
-      });
-
-      const incomeBySource = {};
-      periodIncome.forEach(inc => {
-        const src = inc.source || "Uncategorized";
-        incomeBySource[src] = (incomeBySource[src] || 0) + (inc.amount || 0);
-      });
-
-      const highestSpend = Object.entries(expensesByCategory).sort(([, a], [, b]) => b - a)[0];
-
-      // Create concise financial context optimized for AI analysis
-      const categoryDetails = Object.entries(expensesByCategory)
-        .sort(([, a], [, b]) => b - a)
-        .slice(0, 5) // Top 5 categories only
-        .map(([cat, amt]) => `${cat}: ₹${amt.toFixed(0)}`)
-        .join(" | ");
-
-      const incomeDetails = Object.entries(incomeBySource)
-        .map(([src, amt]) => `${src}: ₹${amt.toFixed(0)}`)
-        .join(" | ");
-
-      const savingsRate = ((periodIncomeTotal - periodExpenseTotal) / periodIncomeTotal * 100).toFixed(1);
-
-      const userFinancialContext = `**Period:** ${period}
-**Income:** ₹${periodIncomeTotal.toFixed(0)} | **Expenses:** ₹${periodExpenseTotal.toFixed(0)} | **Saved:** ₹${(periodIncomeTotal - periodExpenseTotal).toFixed(0)} (${savingsRate}%)
-**Top Spending:** ${categoryDetails}
-**Income Sources:** ${incomeDetails || "None"}`;
-
-      console.log("✓ Financial data analyzed");
-
-      // Initialize Gemini with gemini-2.5-flash
+      // ────────────────────────────────────────────────
+      // Gemini – extreme anti-hallucination
+      // ────────────────────────────────────────────────
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-      const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
-      const systemPrompt = `You are a financial advisor. Answer directly and concisely.
-
-RULES:
-- Maximum 3 key points or recommendations
-- Use **bold** for numbers only
-- Keep total response under 150 words
-- Be actionable and specific
-- Reference their actual data from the context
-- Use emoji sparingly (max 2)`;
-
-      const fullPrompt = `${systemPrompt}
-
-FINANCIAL DATA:
-${userFinancialContext}
-
-Question: "${question}"
-
-Provide 2-3 specific, actionable financial tips based on their data:`;
-
-      console.log("🤖 Calling Gemini 2.5 Flash API...");
-
-      const result = await Promise.race([
-        model.generateContent(fullPrompt),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 25000))
-      ]);
-
-      console.log("✓ API response received");
-
-      if (!result || !result.response) {
-        return res.status(500).json({ message: "Failed to generate response from AI" });
-      }
-
-      const advice = result.response.text();
-      console.log("✓ Advice generated, length:", advice.length);
-
-      res.status(200).json({
-        success: true,
-        question: question,
-        advice: advice,
-        period: period,
-        userStats: {
-          periodExpenses: periodExpenseTotal,
-          periodIncome: periodIncomeTotal,
-          totalExpenses,
-          totalIncome,
-          savings,
-          expensesByCategory
+      const model = genAI.getGenerativeModel({
+        model: "gemini-2.5-flash",
+        generationConfig: {
+          temperature: 0.0,   // deterministic
+          topP: 0.6,
+          maxOutputTokens: 300,
         },
-        timestamp: new Date()
       });
-    } catch (error) {
-      console.error("❌ Error:", error.message);
 
-      let msg = "Error generating financial advice";
-      if (error.message.includes("API key")) {
-        msg = "Invalid Gemini API key. Check your .env file.";
-      } else if (error.message.includes("quota")) {
-        msg = "API quota exceeded. Try again later.";
-      } else if (error.message.includes("Timeout")) {
-        msg = "Request took too long. Please try again.";
-      } else if (error.message.includes("429")) {
-        msg = "Too many requests. Wait a moment and retry.";
-      }
+      const systemPrompt = `You are a ZERO-HALLUCINATION, STRICTLY FACTUAL finance assistant. You are FORBIDDEN from inventing, guessing, estimating, assuming, reusing, or falling back to ANY number, category, or figure from a different period or section.
 
-      res.status(500).json({
-        message: msg,
-        error: process.env.NODE_ENV === "development" ? error.message : undefined
+MANDATORY RULES – VIOLATING ANY RULE IS UNACCEPTABLE:
+
+1. Use ONLY data that appears EXACTLY in the snapshot below – nothing else.
+2. If the snapshot shows "→ PERIOD HAS NO RECORDS AT ALL" or "→ NO ... RECORDED" for the requested period → you MUST start your entire answer with EXACTLY one of these sentences and NOTHING BEFORE IT:
+   - "No records found for ${period} in your data."
+   - "₹0 recorded for ${period} in your data."
+   - "No expenses or income recorded in ${period}."
+3. NEVER use ALL-TIME numbers for a specific period unless the question contains "all time", "total ever", "lifetime", "overall", "entire history".
+4. If the requested period has no data → do NOT give advice, explanations, comparisons, or suggestions. Just report the absence of data.
+5. Bold **only** numbers and ₹ amounts that are directly copied from the snapshot.
+6. Be extremely concise. No fluff. No creative language.
+
+Snapshot (THIS IS THE ONLY DATA YOU ARE ALLOWED TO USE):
+${financialContext}
+
+Question:
+"${question}"
+
+Answer following these rules exactly – no exceptions, no workarounds, no creativity.`;
+
+      const result = await model.generateContent(systemPrompt);
+      const advice = result.response.text().trim();
+
+      return res.json({
+        success: true,
+        question,
+        advice,
+        period,  // now always defined
+        stats: intent === "data" ? stats : undefined,
       });
+    } catch (err) {
+      console.error("Advisor error:", err);
+      let message = "Failed to generate response.";
+      if (err.message?.includes("API key")) message = "Gemini API key issue.";
+      if (err.status === 429 || err.message?.includes("quota")) message = "Rate limit / quota exceeded.";
+      return res.status(500).json({ success: false, message });
     }
-  }
+  },
 };
 
 module.exports = advisorController;

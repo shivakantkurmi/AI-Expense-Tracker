@@ -4,106 +4,100 @@ import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import "./FinancialAdvisor.css";
 
-// Simple markdown to HTML converter
+// Simple markdown → HTML converter
 const renderMarkdown = (text) => {
   let html = text;
-
-  // Headers
-  html = html.replace(/### (.*?)\n/g, '<h5>$1</h5>');
-  html = html.replace(/## (.*?)\n/g, '<h4>$1</h4>');
-  html = html.replace(/# (.*?)\n/g, '<h3>$1</h3>');
-
-  // Bold text
-  html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-
-  // Code blocks (single backtick)
-  html = html.replace(/`(.*?)`/g, '<code>$1</code>');
-
-  // Line breaks
-  html = html.replace(/\n/g, '<br/>');
-
+  html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
+  html = html.replace(/### (.*?)\n/g, "<h5>$1</h5>");
+  html = html.replace(/## (.*?)\n/g, "<h4>$1</h4>");
+  html = html.replace(/# (.*?)\n/g, "<h3>$1</h3>");
+  html = html.replace(/\n/g, "<br/>");
   return html;
 };
 
-// Markdown message component
-const MarkdownMessage = ({ content }) => {
-  return (
-    <div
-      className="markdown-content"
-      dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }}
-    />
-  );
-};
+const MarkdownMessage = ({ content }) => (
+  <div className="markdown-content" dangerouslySetInnerHTML={{ __html: renderMarkdown(content) }} />
+);
 
 const FinancialAdvisor = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hi! 👋 I'm your Financial Advisor AI.\n\nTry asking:\n• Where do I overspend?\n• How can I save more?\n• Show my summary\n• How much did I spend this month?\n• How much did I spend last 3 months?",
+      text: `Hi! 👋 I'm your advanced finance advisor.
+
+I can handle data fetches like totals/categories or general advice.
+
+Try asking:
+• Total expenses all time
+• How much did I spend in January 2025?
+• Expenses between Feb and April
+• Why am I overspending?
+• How to budget better?
+• Where should I invest? (general tips only)`,
       sender: "bot",
-      timestamp: new Date(),
     },
   ]);
+
   const [inputValue, setInputValue] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const messagesEndRef = useRef(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
+  const messagesEndRef = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    if (isOpen && inputRef.current) {
+      inputRef.current.focus();
+    }
+  }, [isOpen]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, isLoading]);
 
   const suggestedQuestions = [
-    "Where do I overspend?",
-    "How can I save more?",
-    "Show my summary this month",
-    "How much did I spend last 30 days?"
+    "Total expenses all time",
+    "Expenses in March 2025",
+    "How much spent last year?",
+    "Why overspending this month?",
+    "General tips to save money",
   ];
 
-  const handleSendMessage = async (text = inputValue) => {
-    if (!text.trim()) return;
+  const sendMessage = async (text = inputValue.trim()) => {
+    if (!text) return;
 
-    // Add user message
-    const userMessage = {
-      id: messages.length + 1,
-      text: text,
-      sender: "user",
-      timestamp: new Date(),
-    };
-
+    const userMessage = { id: Date.now(), text, sender: "user" };
     setMessages((prev) => [...prev, userMessage]);
     setInputValue("");
     setIsLoading(true);
 
     try {
-      const response = await axiosInstance.post(API_PATHS.ADVISOR.GET_ADVICE, {
+      const { data } = await axiosInstance.post(API_PATHS.ADVISOR.GET_ADVICE, {
         question: text,
       });
 
-      const botMessage = {
-        id: messages.length + 2,
-        text: response.data.advice || "I couldn't generate advice at this moment. Please try again.",
-        sender: "bot",
-        timestamp: new Date(),
-        isMarkdown: true
-      };
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: Date.now(),
+          text: data.advice || "No response generated.",
+          sender: "bot",
+          isMarkdown: true,
+        },
+      ]);
+    } catch (err) {
+      let msg = "Sorry, something went wrong.";
+      if (err.response?.status === 429) {
+        msg = "Too many requests — please wait a bit.";
+      }
+      if (err.response?.data?.message?.includes("quota")) {
+        msg = "API quota limit reached. Try again later.";
+      }
 
-      setMessages((prev) => [...prev, botMessage]);
-    } catch (error) {
-      console.error("Error getting advice:", error);
-
-      const errorMessage = {
-        id: messages.length + 2,
-        text: "Sorry, I encountered an error. Please try again later.",
-        sender: "bot",
-        timestamp: new Date(),
-      };
-
-      setMessages((prev) => [...prev, errorMessage]);
+      setMessages((prev) => [
+        ...prev,
+        { id: Date.now(), text: msg, sender: "bot" },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -111,30 +105,23 @@ const FinancialAdvisor = () => {
 
   return (
     <div className="financial-advisor-container">
-      {/* Chat Bubble Button */}
       <button
-        onClick={() => setIsOpen(!isOpen)}
         className={`advisor-toggle-btn ${isOpen ? "open" : ""}`}
+        onClick={() => setIsOpen(!isOpen)}
         title="Financial Advisor"
       >
-        <FiMessageCircle size={24} />
+        <FiMessageCircle size={26} />
       </button>
 
-      {/* Chat Window */}
       {isOpen && (
         <div className="advisor-chat-window">
-          {/* Header */}
           <div className="advisor-header">
-            <h3>💰 Financial Advisor AI</h3>
-            <button
-              onClick={() => setIsOpen(false)}
-              className="advisor-close-btn"
-            >
-              <FiX size={20} />
+            <h3>💰 Advanced Finance Advisor</h3>
+            <button className="advisor-close-btn" onClick={() => setIsOpen(false)}>
+              <FiX size={22} />
             </button>
           </div>
 
-          {/* Messages Area */}
           <div className="advisor-messages">
             {messages.map((msg) => (
               <div
@@ -149,7 +136,7 @@ const FinancialAdvisor = () => {
                   )}
                 </div>
                 <span className="message-time">
-                  {msg.timestamp.toLocaleTimeString([], {
+                  {new Date(msg.id).toLocaleTimeString([], {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
@@ -159,7 +146,7 @@ const FinancialAdvisor = () => {
 
             {isLoading && (
               <div className="message bot-message">
-                <div className="message-content loading">
+                <div className="loading">
                   <span></span>
                   <span></span>
                   <span></span>
@@ -170,15 +157,13 @@ const FinancialAdvisor = () => {
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Suggested Questions */}
-          {messages.length === 1 && (
+          {messages.length <= 2 && (
             <div className="suggested-questions">
-              <p className="suggestion-label">Try asking:</p>
-              {suggestedQuestions.map((q, idx) => (
+              {suggestedQuestions.map((q, i) => (
                 <button
-                  key={idx}
+                  key={i}
                   className="suggestion-btn"
-                  onClick={() => handleSendMessage(q)}
+                  onClick={() => sendMessage(q)}
                 >
                   {q}
                 </button>
@@ -186,25 +171,27 @@ const FinancialAdvisor = () => {
             </div>
           )}
 
-          {/* Input Area */}
           <div className="advisor-input-area">
             <input
+              ref={inputRef}
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyPress={(e) =>
-                e.key === "Enter" && handleSendMessage()
-              }
-              placeholder="Ask me anything about your finances..."
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isLoading) {
+                  sendMessage();
+                }
+              }}
+              placeholder="Ask about data or advice..."
               disabled={isLoading}
               className="advisor-input"
             />
             <button
-              onClick={() => handleSendMessage()}
+              onClick={() => sendMessage()}
               disabled={isLoading || !inputValue.trim()}
               className="advisor-send-btn"
             >
-              <FiSend size={18} />
+              <FiSend size={20} />
             </button>
           </div>
         </div>

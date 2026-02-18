@@ -412,3 +412,66 @@
   border-radius: 4px;
   font-size: 0.92rem;
 }
+
+/* ── Add these styles to your existing FinancialAdvisor.css ── */
+
+/* Tab bar */
+.advisor-tabs {
+  display: flex;
+  border-bottom: 1px solid #e5e7eb;
+  background: #f9fafb;
+}
+
+.advisor-tab {
+  flex: 1;
+  padding: 10px 0;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border-bottom: 3px solid transparent;
+}
+
+.advisor-tab:hover {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+.advisor-tab.active {
+  color: #4f46e5;
+  border-bottom: 3px solid #4f46e5;
+  background: #fff;
+  font-weight: 600;
+}
+
+/* Suggested questions — horizontal scroll on mobile */
+.suggested-questions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid #f1f1f1;
+  max-height: 110px;
+  overflow-y: auto;
+}
+
+.suggestion-btn {
+  font-size: 12px;
+  padding: 5px 10px;
+  border-radius: 20px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.suggestion-btn:hover {
+  background: #ede9fe;
+  border-color: #8b5cf6;
+  color: #4f46e5;
+}
