@@ -12,12 +12,23 @@ const getDateRange = (question) => {
   const thisYear = today.getFullYear();
   const thisMonth = today.getMonth();
 
-  // 1. All-time keywords
+  // All-time
   if (/all\s*time|lifetime|overall|total\s*(expense|expenses|income)|everything/gi.test(q)) {
     return { startDate: null, endDate: null, period: "All Time", isAllTime: true };
   }
 
-  // 2. Month range (jan 2025 to march 2025, january to march, etc.)
+  // Standalone year
+  const yearOnlyMatch = q.match(/\b(20\d{2})\b/);
+  if (yearOnlyMatch) {
+    const yr = parseInt(yearOnlyMatch[1]);
+    if (yr >= 2000 && yr <= thisYear + 10) {
+      const start = new Date(yr, 0, 1);
+      const end = yr === thisYear ? today : new Date(yr, 11, 31, 23, 59, 59);
+      return { startDate: start, endDate: end, period: yr.toString(), isAllTime: false };
+    }
+  }
+
+  // Month range
   const months = {
     jan: 0, january: 0, feb: 1, february: 1, mar: 2, march: 2,
     apr: 3, april: 3, may: 4, jun: 5, june: 5, jul: 6, july: 6,
@@ -50,23 +61,7 @@ const getDateRange = (question) => {
     }
   }
 
-  // 3. Standalone year (e.g. "in 2025", "expenses 2024", "2023 total")
-  const yearOnlyMatch = q.match(/\b(20\d{2})\b/);
-  if (yearOnlyMatch) {
-    const yr = parseInt(yearOnlyMatch[1]);
-    if (yr >= 2000 && yr <= thisYear + 10) {  // reasonable range to avoid nonsense years
-      const start = new Date(yr, 0, 1);
-      const end = yr === thisYear ? today : new Date(yr, 11, 31, 23, 59, 59);
-      return {
-        startDate: start,
-        endDate: end,
-        period: yr.toString(),
-        isAllTime: false,
-      };
-    }
-  }
-
-  // 4. Single month-year (e.g. "january 2025", "expenses march")
+  // Single month-year
   const singleMonthRegex = new RegExp(`\\b(${monthKeys})\\b(?:\\s*(\\d{4}))?`, "i");
   const singleMatch = q.match(singleMonthRegex);
   if (singleMatch) {
@@ -78,7 +73,7 @@ const getDateRange = (question) => {
     return { startDate: start, endDate: end, period: `${mName.charAt(0).toUpperCase() + mName.slice(1)} ${yr}`, isAllTime: false };
   }
 
-  // 5. Relative periods (last N ...)
+  // Relative periods
   const relMatch = q.match(/(\d+)\s*(day|days|week|weeks|month|months|year|years)/i);
   if (relMatch) {
     const num = parseInt(relMatch[1], 10);
@@ -98,7 +93,7 @@ const getDateRange = (question) => {
     }
   }
 
-  // 6. Named: this/last month
+  // Named: this/last month
   if (q.includes("this month") || q.includes("current month")) {
     return { startDate: new Date(thisYear, thisMonth, 1), endDate: today, period: "This Month", isAllTime: false };
   }
@@ -108,7 +103,7 @@ const getDateRange = (question) => {
     return { startDate: start, endDate: end, period: "Last Month", isAllTime: false };
   }
 
-  // Default fallback
+  // Default
   return {
     startDate: new Date(thisYear, thisMonth, 1),
     endDate: today,
@@ -118,73 +113,105 @@ const getDateRange = (question) => {
 };
 
 // ────────────────────────────────────────────────
-// Controller
+// Controller – merged data + advice in one
 // ────────────────────────────────────────────────
 const advisorController = {
   getAdvice: async (req, res) => {
     try {
-      const { question, intent = "data" } = req.body;
+      const { question } = req.body;
       const userId = req.user?.id;
 
       if (!userId) return res.status(401).json({ success: false, message: "Not authenticated" });
       if (!question?.trim()) return res.status(400).json({ success: false, message: "Question required" });
 
-      let financialContext = "(General advice mode – no user data loaded)";
-      let period = "N/A";  // ← Safe default to prevent ReferenceError
-      let stats = {};
+      console.log(`Advisor called - Question: "${question}"`);
 
-      if (intent === "data") {
-        const { startDate, endDate, period: detectedPeriod, isAllTime } = getDateRange(question);
-        period = detectedPeriod;
+      // Always fetch full data (AI decides what to use)
+      const [allExpenses, allIncome] = await Promise.all([
+        Expense.find({ user: userId }).lean(),
+        Income.find({ user: userId }).lean(),
+      ]);
 
-        const periodFilter = { user: userId };
-        if (!isAllTime && startDate && endDate) {
-          periodFilter.date = { $gte: startDate, $lte: endDate };
-        }
+      const sum = (arr) => arr.reduce((acc, item) => acc + (Number(item?.amount) || 0), 0);
 
-        const [periodExpenses, periodIncome, allExpenses, allIncome] = await Promise.all([
-          Expense.find(periodFilter).lean(),
-          Income.find(periodFilter).lean(),
-          Expense.find({ user: userId }).lean(),
-          Income.find({ user: userId }).lean(),
-        ]);
+      const totalExp = sum(allExpenses);
+      const totalInc = sum(allIncome);
+      const netSavings = totalInc - totalExp;
 
-        const sum = (arr) => arr.reduce((acc, item) => acc + (Number(item?.amount) || 0), 0);
+      // Monthly summaries for advanced questions
+      const monthlySummaries = {};
+      allExpenses.forEach((exp) => {
+        const monthKey = moment(exp.date).format("YYYY-MM");
+        if (!monthlySummaries[monthKey]) monthlySummaries[monthKey] = { expenses: 0, income: 0 };
+        monthlySummaries[monthKey].expenses += Number(exp.amount || 0);
+      });
 
-        const periodExp = sum(periodExpenses);
-        const periodInc = sum(periodIncome);
-        const totalExp  = sum(allExpenses);
-        const totalInc  = sum(allIncome);
-        const netPeriod = periodInc - periodExp;
+      allIncome.forEach((inc) => {
+        const monthKey = moment(inc.date).format("YYYY-MM");
+        if (!monthlySummaries[monthKey]) monthlySummaries[monthKey] = { expenses: 0, income: 0 };
+        monthlySummaries[monthKey].income += Number(inc.amount || 0);
+      });
 
-        const byCategory = periodExpenses.reduce((acc, e) => {
-          const cat = e.category || "Uncategorized";
-          acc[cat] = (acc[cat] || 0) + Number(e.amount || 0);
-          return acc;
-        }, {});
+      const monthlyLines = Object.entries(monthlySummaries)
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([month, { expenses, income }]) => {
+          const net = income - expenses;
+          const rate = income > 0 ? ((net / income) * 100).toFixed(1) : "0.0";
+          return `• ${month}: Exp ₹${Math.round(expenses)}, Inc ₹${Math.round(income)}, Net ₹${Math.round(net)}, Rate ${rate}%`;
+        })
+        .join("\n") || "→ NO MONTHLY RECORDS";
 
-        const categoryLines = Object.entries(byCategory)
-          .sort(([,a], [,b]) => b - a)
-          .map(([cat, amt]) => `• ${cat}: ₹${Math.round(amt)}`)
-          .join("\n") || "→ NO EXPENSE CATEGORIES RECORDED IN THIS PERIOD";
+      const byCategory = allExpenses.reduce((acc, e) => {
+        const cat = e.category || "Uncategorized";
+        acc[cat] = (acc[cat] || 0) + Number(e.amount || 0);
+        return acc;
+      }, {});
 
-        const bySource = periodIncome.reduce((acc, i) => {
-          const src = i.source || "Uncategorized";
-          acc[src] = (acc[src] || 0) + Number(i.amount || 0);
-          return acc;
-        }, {});
+      const categoryLines = Object.entries(byCategory)
+        .sort(([,a], [,b]) => b - a)
+        .map(([cat, amt]) => `• ${cat}: ₹${Math.round(amt)}`)
+        .join("\n") || "→ NO CATEGORIES";
 
-        const incomeLines = Object.entries(bySource)
-          .map(([src, amt]) => `• ${src}: ₹${Math.round(amt)}`)
-          .join("\n") || "→ NO INCOME SOURCES RECORDED IN THIS PERIOD";
+      const bySource = allIncome.reduce((acc, i) => {
+        const src = i.source || "Uncategorized";
+        acc[src] = (acc[src] || 0) + Number(i.amount || 0);
+        return acc;
+      }, {});
 
-        financialContext = `
-REQUESTED PERIOD: ${period}
+      const incomeLines = Object.entries(bySource)
+        .map(([src, amt]) => `• ${src}: ₹${Math.round(amt)}`)
+        .join("\n") || "→ NO SOURCES";
+
+      // Period-specific (for data questions)
+      const { startDate, endDate, period: detectedPeriod, isAllTime } = getDateRange(question);
+      const period = detectedPeriod;
+
+      const periodFilter = { user: userId };
+      if (!isAllTime && startDate && endDate) {
+        periodFilter.date = { $gte: startDate, $lte: endDate };
+      }
+
+      const [periodExpenses, periodIncome] = await Promise.all([
+        Expense.find(periodFilter).lean(),
+        Income.find(periodFilter).lean(),
+      ]);
+
+      const periodExp = sum(periodExpenses);
+      const periodInc = sum(periodIncome);
+      const netPeriod = periodInc - periodExp;
+      const savingsRate = periodInc > 0 ? ((netPeriod / periodInc) * 100).toFixed(1) : "0.0";
+
+      // ────────────────────────────────────────────────
+      // Full context
+      // ────────────────────────────────────────────────
+      const financialContext = `
+DETECTED PERIOD: ${period}
 DATE RANGE: ${isAllTime ? "All recorded history" : `${moment(startDate).format("D MMM YYYY")} – ${moment(endDate).format("D MMM YYYY")}`}
 
-EXPENSES THIS PERIOD: ₹${Math.round(periodExp)} (${periodExpenses.length} transactions) ${periodExpenses.length === 0 ? " → PERIOD HAS NO RECORDS AT ALL" : ""}
-INCOME THIS PERIOD:   ₹${Math.round(periodInc)} (${periodIncome.length} transactions) ${periodIncome.length === 0 ? " → PERIOD HAS NO RECORDS AT ALL" : ""}
+EXPENSES THIS PERIOD: ₹${Math.round(periodExp)} (${periodExpenses.length} transactions) ${periodExpenses.length === 0 ? " → NO EXPENSES IN THIS PERIOD" : ""}
+INCOME THIS PERIOD:   ₹${Math.round(periodInc)} (${periodIncome.length} transactions) ${periodIncome.length === 0 ? " → NO INCOME IN THIS PERIOD" : ""}
 NET THIS PERIOD:      ₹${Math.round(netPeriod)}
+SAVINGS RATE THIS PERIOD: **${savingsRate}%**
 
 EXPENSE CATEGORIES THIS PERIOD:
 ${categoryLines}
@@ -192,55 +219,48 @@ ${categoryLines}
 INCOME SOURCES THIS PERIOD:
 ${incomeLines}
 
-ALL-TIME TOTALS — ONLY USE WHEN QUESTION EXPLICITLY SAYS "all time", "total ever", "lifetime", "overall", "entire history":
+MONTHLY BREAKDOWN (all months with data):
+${monthlyLines}
+
+ALL-TIME TOTALS:
 Expenses: ₹${Math.round(totalExp)}
 Income:   ₹${Math.round(totalInc)}
-Net savings: ₹${Math.round(totalInc - totalExp)}
-        `.trim();
-
-        stats = {
-          periodExpense: periodExp,
-          periodIncome: periodInc,
-          totalExpense: totalExp,
-          totalIncome: totalInc,
-          netPeriod,
-        };
-      }
+Net savings: ₹${Math.round(netSavings)}
+      `.trim();
 
       // ────────────────────────────────────────────────
-      // Gemini – extreme anti-hallucination
+      // Gemini – AI decides data vs general advice
       // ────────────────────────────────────────────────
       const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
       const model = genAI.getGenerativeModel({
         model: "gemini-2.5-flash",
         generationConfig: {
-          temperature: 0.0,   // deterministic
-          topP: 0.6,
-          maxOutputTokens: 300,
+          temperature: 0.2,
+          topP: 0.9,
+          maxOutputTokens: 600,
         },
       });
 
-      const systemPrompt = `You are a ZERO-HALLUCINATION, STRICTLY FACTUAL finance assistant. You are FORBIDDEN from inventing, guessing, estimating, assuming, reusing, or falling back to ANY number, category, or figure from a different period or section.
+      const systemPrompt = `You are an advanced finance assistant that intelligently merges data analysis and advice.
 
-MANDATORY RULES – VIOLATING ANY RULE IS UNACCEPTABLE:
+MANDATORY RULES:
 
-1. Use ONLY data that appears EXACTLY in the snapshot below – nothing else.
-2. If the snapshot shows "→ PERIOD HAS NO RECORDS AT ALL" or "→ NO ... RECORDED" for the requested period → you MUST start your entire answer with EXACTLY one of these sentences and NOTHING BEFORE IT:
-   - "No records found for ${period} in your data."
-   - "₹0 recorded for ${period} in your data."
-   - "No expenses or income recorded in ${period}."
-3. NEVER use ALL-TIME numbers for a specific period unless the question contains "all time", "total ever", "lifetime", "overall", "entire history".
-4. If the requested period has no data → do NOT give advice, explanations, comparisons, or suggestions. Just report the absence of data.
-5. Bold **only** numbers and ₹ amounts that are directly copied from the snapshot.
-6. Be extremely concise. No fluff. No creative language.
+1. ALWAYS check if the question requires user data (e.g., totals, percentages, categories, most expensive month, savings rate, etc.) → use the snapshot.
+2. If the question is purely general (e.g., "how to save more", "50/30/20 rule") → ignore the snapshot and give timeless advice.
+3. For percentage/savings questions → use SAVINGS RATE THIS PERIOD directly.
+4. For "most expensive month" or similar → use MONTHLY BREAKDOWN to identify.
+5. If period has no data ("→ NO ...") → start with "No records found for [period] in your data." and do NOT give advice.
+6. When data exists → report key facts first, then 1-2 actionable advice tips based on the data.
+7. Bold **only** numbers and ₹ amounts from the snapshot.
+8. Be concise and helpful.
 
-Snapshot (THIS IS THE ONLY DATA YOU ARE ALLOWED TO USE):
+Snapshot:
 ${financialContext}
 
 Question:
 "${question}"
 
-Answer following these rules exactly – no exceptions, no workarounds, no creativity.`;
+Answer:`;
 
       const result = await model.generateContent(systemPrompt);
       const advice = result.response.text().trim();
@@ -249,8 +269,15 @@ Answer following these rules exactly – no exceptions, no workarounds, no creat
         success: true,
         question,
         advice,
-        period,  // now always defined
-        stats: intent === "data" ? stats : undefined,
+        period,
+        stats: {
+          periodExpense: periodExp,
+          periodIncome: periodInc,
+          totalExpense: totalExp,
+          totalIncome: totalInc,
+          netPeriod,
+          savingsRate,
+        },
       });
     } catch (err) {
       console.error("Advisor error:", err);

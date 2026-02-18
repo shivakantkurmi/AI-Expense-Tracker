@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { FiSend, FiX, FiMessageCircle } from "react-icons/fi";
+import { FiSend, FiX, FiMessageCircle, FiRefreshCw } from "react-icons/fi";
 import axiosInstance from "../../utils/axiosInstance";
 import { API_PATHS } from "../../utils/apiPaths";
 import "./FinancialAdvisor.css";
 
-// Simple markdown → HTML converter
+// Simple markdown → HTML
 const renderMarkdown = (text) => {
   let html = text;
   html = html.replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>");
@@ -24,18 +24,9 @@ const FinancialAdvisor = () => {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: `Hi! 👋 I'm your advanced finance advisor.
-
-I can handle data fetches like totals/categories or general advice.
-
-Try asking:
-• Total expenses all time
-• How much did I spend in January 2025?
-• Expenses between Feb and April
-• Why am I overspending?
-• How to budget better?
-• Where should I invest? (general tips only)`,
+      text: `Hi! 👋 I'm your advanced finance advisor.\n\nI can answer data questions (totals, categories, periods) and give advice based on your finances.\n\nIf a question needs data, I'll use it. If it's general, I'll give timeless tips.\n\nTry asking:\n• How much did I save last year in percent?\n• Most expensive month?\n• How can I save more?`,
       sender: "bot",
+      isMarkdown: true,
     },
   ]);
 
@@ -46,22 +37,12 @@ Try asking:
   const inputRef = useRef(null);
 
   useEffect(() => {
-    if (isOpen && inputRef.current) {
-      inputRef.current.focus();
-    }
+    if (isOpen && inputRef.current) inputRef.current.focus();
   }, [isOpen]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isLoading]);
-
-  const suggestedQuestions = [
-    "Total expenses all time",
-    "Expenses in March 2025",
-    "How much spent last year?",
-    "Why overspending this month?",
-    "General tips to save money",
-  ];
 
   const sendMessage = async (text = inputValue.trim()) => {
     if (!text) return;
@@ -87,12 +68,8 @@ Try asking:
       ]);
     } catch (err) {
       let msg = "Sorry, something went wrong.";
-      if (err.response?.status === 429) {
-        msg = "Too many requests — please wait a bit.";
-      }
-      if (err.response?.data?.message?.includes("quota")) {
-        msg = "API quota limit reached. Try again later.";
-      }
+      if (err.response?.status === 429) msg = "⏳ Too many requests — please wait.";
+      if (err.response?.data?.message?.includes("quota")) msg = "🚫 API quota reached.";
 
       setMessages((prev) => [
         ...prev,
@@ -102,6 +79,26 @@ Try asking:
       setIsLoading(false);
     }
   };
+
+  const clearChat = () => {
+    setMessages([
+      {
+        id: Date.now(),
+        text: "Chat cleared. How can I help you today?",
+        sender: "bot",
+        isMarkdown: true,
+      },
+    ]);
+  };
+
+  const showSuggestions = messages.length <= 3;
+  const suggestions = [
+    "How much did I save last year in percent?",
+    "Most expensive month?",
+    "Expenses in 2025",
+    "How can I save more?",
+    "What is my average monthly savings?",
+  ];
 
   return (
     <div className="financial-advisor-container">
@@ -116,10 +113,27 @@ Try asking:
       {isOpen && (
         <div className="advisor-chat-window">
           <div className="advisor-header">
-            <h3>💰 Advanced Finance Advisor</h3>
-            <button className="advisor-close-btn" onClick={() => setIsOpen(false)}>
-              <FiX size={22} />
-            </button>
+            <h3>💰 Finance Advisor</h3>
+            <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+              <button
+                className="advisor-clear-btn"
+                onClick={clearChat}
+                title="Clear chat"
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "white",
+                  cursor: "pointer",
+                  padding: "6px",
+                  borderRadius: "6px",
+                }}
+              >
+                <FiRefreshCw size={18} />
+              </button>
+              <button className="advisor-close-btn" onClick={() => setIsOpen(false)}>
+                <FiX size={22} />
+              </button>
+            </div>
           </div>
 
           <div className="advisor-messages">
@@ -129,17 +143,10 @@ Try asking:
                 className={`message ${msg.sender === "user" ? "user-message" : "bot-message"}`}
               >
                 <div className="message-content">
-                  {msg.isMarkdown ? (
-                    <MarkdownMessage content={msg.text} />
-                  ) : (
-                    msg.text
-                  )}
+                  {msg.isMarkdown ? <MarkdownMessage content={msg.text} /> : msg.text}
                 </div>
                 <span className="message-time">
-                  {new Date(msg.id).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {new Date(msg.id).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                 </span>
               </div>
             ))}
@@ -147,9 +154,7 @@ Try asking:
             {isLoading && (
               <div className="message bot-message">
                 <div className="loading">
-                  <span></span>
-                  <span></span>
-                  <span></span>
+                  <span></span><span></span><span></span>
                 </div>
               </div>
             )}
@@ -157,14 +162,10 @@ Try asking:
             <div ref={messagesEndRef} />
           </div>
 
-          {messages.length <= 2 && (
+          {showSuggestions && (
             <div className="suggested-questions">
-              {suggestedQuestions.map((q, i) => (
-                <button
-                  key={i}
-                  className="suggestion-btn"
-                  onClick={() => sendMessage(q)}
-                >
+              {suggestions.map((q, i) => (
+                <button key={i} className="suggestion-btn" onClick={() => sendMessage(q)}>
                   {q}
                 </button>
               ))}
@@ -177,11 +178,7 @@ Try asking:
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isLoading) {
-                  sendMessage();
-                }
-              }}
+              onKeyDown={(e) => e.key === "Enter" && !isLoading && sendMessage()}
               placeholder="Ask about data or advice..."
               disabled={isLoading}
               className="advisor-input"
